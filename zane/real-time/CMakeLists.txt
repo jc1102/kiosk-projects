@@ -1,86 +1,67 @@
 cmake_minimum_required(VERSION 3.18)
-project(KioskCameraCapture VERSION 1.0.0 LANGUAGES CXX)
+project(KioskFaceDetection)
 
-# C++ Standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Jetson Orin Nano specific settings
-set(CMAKE_CUDA_ARCHITECTURES 87)  # Orin architecture
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
-
-# Find required packages
+# Find OpenCV
 find_package(OpenCV REQUIRED)
-find_package(CUDA REQUIRED)
-
-# Include directories
-include_directories(
-    ${OpenCV_INCLUDE_DIRS}
-    ${CUDA_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 # Source files
-set(CAMERA_SOURCES
+set(SOURCES
     camera_capture.cpp
+    face_detection.cpp
 )
 
-set(CAMERA_HEADERS
+set(HEADERS
     camera_capture.h
+    face_detection.h
 )
 
-# Camera capture library
-add_library(camera_capture SHARED
-    ${CAMERA_SOURCES}
-    ${CAMERA_HEADERS}
-)
-
-target_link_libraries(camera_capture
+# Libraries
+set(LIBRARIES
     ${OpenCV_LIBS}
-    ${CUDA_LIBRARIES}
-    ${CUDA_CUDART_LIBRARY}
+    pthread
 )
 
-# Enable CUDA linking
-set_target_properties(camera_capture PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    POSITION_INDEPENDENT_CODE ON
-)
+# Create test executables
+add_executable(test_camera test_camera.cpp ${SOURCES})
+target_link_libraries(test_camera ${LIBRARIES})
+
+add_executable(test_face_detection test_face_detection.cpp ${SOURCES})
+target_link_libraries(test_face_detection ${LIBRARIES})
 
 # Compiler flags
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(camera_capture PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-        -O3
-    )
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(test_camera PRIVATE -Wall -Wextra -O3)
+    target_compile_options(test_face_detection PRIVATE -Wall -Wextra -O3)
+elseif(MSVC)
+    target_compile_options(test_camera PRIVATE /W4 /O2)
+    target_compile_options(test_face_detection PRIVATE /W4 /O2)
 endif()
 
-# Test executable
-add_executable(camera_test
-    test_camera.cpp
-)
+# CUDA support (for Jetson Orin Nano)
+if(OpenCV_FOUND AND OpenCV_VERSION VERSION_GREATER_EQUAL 4.5.0)
+    if(OpenCV_USE_CUDA)
+        message(STATUS "OpenCV CUDA support detected")
+    endif()
+endif()
 
-target_link_libraries(camera_test
-    camera_capture
-)
-
-# Installation rules
-install(TARGETS camera_capture
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-)
-
-install(FILES ${CAMERA_HEADERS}
-    DESTINATION include/kiosk/cv
-)
+# Installation
+install(TARGETS test_camera test_face_detection
+        RUNTIME DESTINATION bin)
 
 # Print configuration summary
-message(STATUS "==========================================")
-message(STATUS "Kiosk Camera Capture Configuration:")
+message(STATUS "")
+message(STATUS "=== Kiosk Face Detection Configuration ===")
 message(STATUS "OpenCV version: ${OpenCV_VERSION}")
-message(STATUS "CUDA version: ${CUDA_VERSION}")
-message(STATUS "CUDA architecture: ${CMAKE_CUDA_ARCHITECTURES}")
-message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
-message(STATUS "==========================================")
+message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
+if(OpenCV_USE_CUDA)
+    message(STATUS "CUDA support: YES")
+else()
+    message(STATUS "CUDA support: NO")
+endif()
+message(STATUS "===========================================")
+message(STATUS "")
