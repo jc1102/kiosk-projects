@@ -36,9 +36,18 @@ else()
     )
 endif()
 
-# Create benchmark executable
+# Include directories for face detection
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../real-time
+)
+
+# Create benchmark executables
 add_executable(test_benchmark test_benchmark.cpp ${SOURCES})
 target_link_libraries(test_benchmark ${LIBRARIES})
+
+# Create integration test
+add_executable(integration_test integration_test.cpp ${SOURCES})
+target_link_libraries(integration_test ${LIBRARIES})
 
 # Compiler flags
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -48,7 +57,7 @@ elseif(MSVC)
 endif()
 
 # Installation
-install(TARGETS test_benchmark
+install(TARGETS test_benchmark integration_test
         RUNTIME DESTINATION bin)
 
 # Print configuration summary
